@@ -1,0 +1,53 @@
+cmake_minimum_required(VERSION 3.13)
+
+project(Render)
+set(CMAKE_CXX_STANDARD 20)
+
+# --- Force static CRT on MSVC ---
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
+# --- Configure GLFW for static linking ---
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)   # <-- IMPORTANT
+
+add_subdirectory(dependencies/glfw-3.4)
+add_subdirectory(dependencies/assimp)
+# --- Collect source files ---
+file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
+)
+
+add_executable(Render ${MY_SOURCES})
+
+
+target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC SHADERS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")
+target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC TEXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/textures/")
+
+target_include_directories(Render PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/include"
+)
+
+target_include_directories(Render PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw-3.4/include"
+)
+
+# --- Link GLFW statically ---
+target_link_libraries(Render PRIVATE glfw)
+
+# --- Link Windows system libs if MSVC ---
+if (WIN32)
+    target_link_libraries(Render PRIVATE
+        opengl32
+        gdi32
+        user32
+        shell32
+        assimp
+    )
+endif()
