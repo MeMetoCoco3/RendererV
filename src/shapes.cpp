@@ -18,7 +18,7 @@ void Shape::Draw(const Shader& shader)
 	glDrawElements(GL_TRIANGLES, m_Indices.size(), GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 }
-
+// TODO: KILL THIS AND DECOUPLE IT
 u32 Shape::m_LoadTexture(const std::string file_path)
 {
 	u32 TextureID;

@@ -14,8 +14,7 @@
 #include "shapes.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <assimp/>
-
+#include "assimp_layer.h"
 constexpr auto WIDTH = 1000.0f;
 constexpr auto HEIGHT = 800.0f;
 constexpr auto ASPECT_RATIO = WIDTH / HEIGHT;
@@ -51,8 +50,9 @@ int main()
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	Quad quad(1);
-	quad.AddTexture(TEXTURE_PATH "wood.png");
+	//Quad quad(1);
+	//quad.AddTexture(TEXTURE_PATH "wood.png");
+	Model Backpack("G:\\Render\\assets\\backpack\\backpack.obj");
 	glm::mat4 model_mat = glm::mat4(1.0f);
 	model_mat = glm::translate(model_mat, glm::vec3(0.0f, .0f, -2.0f));
 
@@ -73,7 +73,8 @@ int main()
 		shader.SetMat4("model_mat", model_mat);
 		shader.SetMat4("proj_mat", proj_mat);
 		shader.SetMat4("view_mat", camera.GetViewMatrix());
-		quad.Draw(shader);
+			
+		Backpack.Draw(shader);
 
 		glfwSwapBuffers(Window);
 		glfwPollEvents();

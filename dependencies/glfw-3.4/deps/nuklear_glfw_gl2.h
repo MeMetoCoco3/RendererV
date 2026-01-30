@@ -154,10 +154,10 @@ nk_glfw3_render(enum nk_anti_aliasing AA)
         nk_convert(&glfw.ctx, &dev->cmds, &vbuf, &ebuf, &config);
 
         /* setup vertex buffer pointer */
-        {const void *vertices = nk_buffer_memory_const(&vbuf);
-        glVertexPointer(2, GL_FLOAT, vs, (const void*)((const nk_byte*)vertices + vp));
-        glTexCoordPointer(2, GL_FLOAT, vs, (const void*)((const nk_byte*)vertices + vt));
-        glColorPointer(4, GL_UNSIGNED_BYTE, vs, (const void*)((const nk_byte*)vertices + vc));}
+        {const void *m_Vertices = nk_buffer_memory_const(&vbuf);
+        glVertexPointer(2, GL_FLOAT, vs, (const void*)((const nk_byte*)m_Vertices + vp));
+        glTexCoordPointer(2, GL_FLOAT, vs, (const void*)((const nk_byte*)m_Vertices + vt));
+        glColorPointer(4, GL_UNSIGNED_BYTE, vs, (const void*)((const nk_byte*)m_Vertices + vc));}
 
         /* iterate over and execute each draw command */
         offset = (const nk_draw_index*)nk_buffer_memory_const(&ebuf);

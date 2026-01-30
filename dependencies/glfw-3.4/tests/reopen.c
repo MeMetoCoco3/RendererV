@@ -60,7 +60,7 @@ static const char* fragment_shader_text =
 "    gl_FragColor = vec4(1.0);\n"
 "}\n";
 
-static const vec2 vertices[4] =
+static const vec2 m_Vertices[4] =
 {
     { -0.5f, -0.5f },
     {  0.5f, -0.5f },
@@ -187,11 +187,11 @@ int main(int argc, char** argv)
 
         glGenBuffers(1, &vertex_buffer);
         glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(m_Vertices), m_Vertices, GL_STATIC_DRAW);
 
         glEnableVertexAttribArray(vpos_location);
         glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE,
-                              sizeof(vertices[0]), (void*) 0);
+                              sizeof(m_Vertices[0]), (void*) 0);
 
         glfwSetTime(0.0);
 

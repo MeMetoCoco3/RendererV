@@ -424,7 +424,7 @@ int main(void)
         {
             int wnd_width, wnd_height, fb_width, fb_height;
             float scale;
-            vec2 vertices[4];
+            vec2 m_Vertices[4];
             mat4x4 mvp;
 
             glfwGetWindowSize(window, &wnd_width, &wnd_height);
@@ -433,18 +433,18 @@ int main(void)
             glViewport(0, 0, fb_width, fb_height);
 
             scale = (float) fb_width / (float) wnd_width;
-            vertices[0][0] = 0.5f;
-            vertices[0][1] = (float) (fb_height - floor(cursor_y * scale) - 1.f + 0.5f);
-            vertices[1][0] = (float) fb_width + 0.5f;
-            vertices[1][1] = (float) (fb_height - floor(cursor_y * scale) - 1.f + 0.5f);
-            vertices[2][0] = (float) floor(cursor_x * scale) + 0.5f;
-            vertices[2][1] = 0.5f;
-            vertices[3][0] = (float) floor(cursor_x * scale) + 0.5f;
-            vertices[3][1] = (float) fb_height + 0.5f;
+            m_Vertices[0][0] = 0.5f;
+            m_Vertices[0][1] = (float) (fb_height - floor(cursor_y * scale) - 1.f + 0.5f);
+            m_Vertices[1][0] = (float) fb_width + 0.5f;
+            m_Vertices[1][1] = (float) (fb_height - floor(cursor_y * scale) - 1.f + 0.5f);
+            m_Vertices[2][0] = (float) floor(cursor_x * scale) + 0.5f;
+            m_Vertices[2][1] = 0.5f;
+            m_Vertices[3][0] = (float) floor(cursor_x * scale) + 0.5f;
+            m_Vertices[3][1] = (float) fb_height + 0.5f;
 
             glBufferData(GL_ARRAY_BUFFER,
-                         sizeof(vertices),
-                         vertices,
+                         sizeof(m_Vertices),
+                         m_Vertices,
                          GL_STREAM_DRAW);
 
             mat4x4_ortho(mvp, 0.f, (float) fb_width, 0.f, (float) fb_height, 0.f, 1.f);

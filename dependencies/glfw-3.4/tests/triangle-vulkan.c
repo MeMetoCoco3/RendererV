@@ -186,7 +186,7 @@ struct demo {
         VkImageView view;
     } depth;
 
-    struct texture_object textures[DEMO_TEXTURE_COUNT];
+    struct texture_object m_Textures[DEMO_TEXTURE_COUNT];
 
     struct {
         VkBuffer buf;
@@ -195,7 +195,7 @@ struct demo {
         VkPipelineVertexInputStateCreateInfo vi;
         VkVertexInputBindingDescription vi_bindings[1];
         VkVertexInputAttributeDescription vi_attrs[2];
-    } vertices;
+    } m_Vertices;
 
     VkCommandBuffer setup_cmd; // Command Buffer for initialization commands
     VkCommandBuffer draw_cmd;  // Command Buffer for drawing commands
@@ -456,7 +456,7 @@ static void demo_draw_build_cmd(struct demo *demo) {
 
     VkDeviceSize offsets[1] = {0};
     vkCmdBindVertexBuffers(demo->draw_cmd, VERTEX_BUFFER_BIND_ID, 1,
-                           &demo->vertices.buf, offsets);
+                           &demo->m_Vertices.buf, offsets);
 
     vkCmdDraw(demo->draw_cmd, 3, 1, 0, 0);
     vkCmdEndRenderPass(demo->draw_cmd);
@@ -919,7 +919,7 @@ static void demo_prepare_textures(struct demo *demo) {
             !demo->use_staging_buffer) {
             /* Device can texture using linear textures */
             demo_prepare_texture_image(
-                demo, tex_colors[i], &demo->textures[i], VK_IMAGE_TILING_LINEAR,
+                demo, tex_colors[i], &demo->m_Textures[i], VK_IMAGE_TILING_LINEAR,
                 VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -936,7 +936,7 @@ static void demo_prepare_textures(struct demo *demo) {
                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
             demo_prepare_texture_image(
-                demo, tex_colors[i], &demo->textures[i],
+                demo, tex_colors[i], &demo->m_Textures[i],
                 VK_IMAGE_TILING_OPTIMAL,
                 (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -947,9 +947,9 @@ static void demo_prepare_textures(struct demo *demo) {
                                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                   0);
 
-            demo_set_image_layout(demo, demo->textures[i].image,
+            demo_set_image_layout(demo, demo->m_Textures[i].image,
                                   VK_IMAGE_ASPECT_COLOR_BIT,
-                                  demo->textures[i].imageLayout,
+                                  demo->m_Textures[i].imageLayout,
                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                   0);
 
@@ -963,13 +963,13 @@ static void demo_prepare_textures(struct demo *demo) {
             };
             vkCmdCopyImage(
                 demo->setup_cmd, staging_texture.image,
-                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, demo->textures[i].image,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, demo->m_Textures[i].image,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
 
-            demo_set_image_layout(demo, demo->textures[i].image,
+            demo_set_image_layout(demo, demo->m_Textures[i].image,
                                   VK_IMAGE_ASPECT_COLOR_BIT,
                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                  demo->textures[i].imageLayout,
+                                  demo->m_Textures[i].imageLayout,
                                   0);
 
             demo_flush_init_cmd(demo);
@@ -1015,13 +1015,13 @@ static void demo_prepare_textures(struct demo *demo) {
 
         /* create sampler */
         err = vkCreateSampler(demo->device, &sampler, NULL,
-                              &demo->textures[i].sampler);
+                              &demo->m_Textures[i].sampler);
         assert(!err);
 
         /* create image view */
-        view.image = demo->textures[i].image;
+        view.image = demo->m_Textures[i].image;
         err = vkCreateImageView(demo->device, &view, NULL,
-                                &demo->textures[i].view);
+                                &demo->m_Textures[i].view);
         assert(!err);
     }
 }
@@ -1053,12 +1053,12 @@ static void demo_prepare_vertices(struct demo *demo) {
     bool U_ASSERT_ONLY pass;
     void *data;
 
-    memset(&demo->vertices, 0, sizeof(demo->vertices));
+    memset(&demo->m_Vertices, 0, sizeof(demo->m_Vertices));
 
-    err = vkCreateBuffer(demo->device, &buf_info, NULL, &demo->vertices.buf);
+    err = vkCreateBuffer(demo->device, &buf_info, NULL, &demo->m_Vertices.buf);
     assert(!err);
 
-    vkGetBufferMemoryRequirements(demo->device, demo->vertices.buf, &mem_reqs);
+    vkGetBufferMemoryRequirements(demo->device, demo->m_Vertices.buf, &mem_reqs);
     assert(!err);
 
     mem_alloc.allocationSize = mem_reqs.size;
@@ -1068,42 +1068,42 @@ static void demo_prepare_vertices(struct demo *demo) {
                                        &mem_alloc.memoryTypeIndex);
     assert(pass);
 
-    err = vkAllocateMemory(demo->device, &mem_alloc, NULL, &demo->vertices.mem);
+    err = vkAllocateMemory(demo->device, &mem_alloc, NULL, &demo->m_Vertices.mem);
     assert(!err);
 
-    err = vkMapMemory(demo->device, demo->vertices.mem, 0,
+    err = vkMapMemory(demo->device, demo->m_Vertices.mem, 0,
                       mem_alloc.allocationSize, 0, &data);
     assert(!err);
 
     memcpy(data, vb, sizeof(vb));
 
-    vkUnmapMemory(demo->device, demo->vertices.mem);
+    vkUnmapMemory(demo->device, demo->m_Vertices.mem);
 
-    err = vkBindBufferMemory(demo->device, demo->vertices.buf,
-                             demo->vertices.mem, 0);
+    err = vkBindBufferMemory(demo->device, demo->m_Vertices.buf,
+                             demo->m_Vertices.mem, 0);
     assert(!err);
 
-    demo->vertices.vi.sType =
+    demo->m_Vertices.vi.sType =
         VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    demo->vertices.vi.pNext = NULL;
-    demo->vertices.vi.vertexBindingDescriptionCount = 1;
-    demo->vertices.vi.pVertexBindingDescriptions = demo->vertices.vi_bindings;
-    demo->vertices.vi.vertexAttributeDescriptionCount = 2;
-    demo->vertices.vi.pVertexAttributeDescriptions = demo->vertices.vi_attrs;
+    demo->m_Vertices.vi.pNext = NULL;
+    demo->m_Vertices.vi.vertexBindingDescriptionCount = 1;
+    demo->m_Vertices.vi.pVertexBindingDescriptions = demo->m_Vertices.vi_bindings;
+    demo->m_Vertices.vi.vertexAttributeDescriptionCount = 2;
+    demo->m_Vertices.vi.pVertexAttributeDescriptions = demo->m_Vertices.vi_attrs;
 
-    demo->vertices.vi_bindings[0].binding = VERTEX_BUFFER_BIND_ID;
-    demo->vertices.vi_bindings[0].stride = sizeof(vb[0]);
-    demo->vertices.vi_bindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    demo->m_Vertices.vi_bindings[0].binding = VERTEX_BUFFER_BIND_ID;
+    demo->m_Vertices.vi_bindings[0].stride = sizeof(vb[0]);
+    demo->m_Vertices.vi_bindings[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    demo->vertices.vi_attrs[0].binding = VERTEX_BUFFER_BIND_ID;
-    demo->vertices.vi_attrs[0].location = 0;
-    demo->vertices.vi_attrs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    demo->vertices.vi_attrs[0].offset = 0;
+    demo->m_Vertices.vi_attrs[0].binding = VERTEX_BUFFER_BIND_ID;
+    demo->m_Vertices.vi_attrs[0].location = 0;
+    demo->m_Vertices.vi_attrs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    demo->m_Vertices.vi_attrs[0].offset = 0;
 
-    demo->vertices.vi_attrs[1].binding = VERTEX_BUFFER_BIND_ID;
-    demo->vertices.vi_attrs[1].location = 1;
-    demo->vertices.vi_attrs[1].format = VK_FORMAT_R32G32_SFLOAT;
-    demo->vertices.vi_attrs[1].offset = sizeof(float) * 3;
+    demo->m_Vertices.vi_attrs[1].binding = VERTEX_BUFFER_BIND_ID;
+    demo->m_Vertices.vi_attrs[1].location = 1;
+    demo->m_Vertices.vi_attrs[1].format = VK_FORMAT_R32G32_SFLOAT;
+    demo->m_Vertices.vi_attrs[1].offset = sizeof(float) * 3;
 }
 
 static void demo_prepare_descriptor_layout(struct demo *demo) {
@@ -1261,7 +1261,7 @@ static void demo_prepare_pipeline(struct demo *demo) {
     pipeline.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipeline.layout = demo->pipeline_layout;
 
-    vi = demo->vertices.vi;
+    vi = demo->m_Vertices.vi;
 
     memset(&ia, 0, sizeof(ia));
     ia.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -1390,8 +1390,8 @@ static void demo_prepare_descriptor_set(struct demo *demo) {
 
     memset(&tex_descs, 0, sizeof(tex_descs));
     for (i = 0; i < DEMO_TEXTURE_COUNT; i++) {
-        tex_descs[i].sampler = demo->textures[i].sampler;
-        tex_descs[i].imageView = demo->textures[i].view;
+        tex_descs[i].sampler = demo->m_Textures[i].sampler;
+        tex_descs[i].imageView = demo->m_Textures[i].view;
         tex_descs[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
     }
 
@@ -2038,14 +2038,14 @@ static void demo_cleanup(struct demo *demo) {
     vkDestroyPipelineLayout(demo->device, demo->pipeline_layout, NULL);
     vkDestroyDescriptorSetLayout(demo->device, demo->desc_layout, NULL);
 
-    vkDestroyBuffer(demo->device, demo->vertices.buf, NULL);
-    vkFreeMemory(demo->device, demo->vertices.mem, NULL);
+    vkDestroyBuffer(demo->device, demo->m_Vertices.buf, NULL);
+    vkFreeMemory(demo->device, demo->m_Vertices.mem, NULL);
 
     for (i = 0; i < DEMO_TEXTURE_COUNT; i++) {
-        vkDestroyImageView(demo->device, demo->textures[i].view, NULL);
-        vkDestroyImage(demo->device, demo->textures[i].image, NULL);
-        vkFreeMemory(demo->device, demo->textures[i].mem, NULL);
-        vkDestroySampler(demo->device, demo->textures[i].sampler, NULL);
+        vkDestroyImageView(demo->device, demo->m_Textures[i].view, NULL);
+        vkDestroyImage(demo->device, demo->m_Textures[i].image, NULL);
+        vkFreeMemory(demo->device, demo->m_Textures[i].mem, NULL);
+        vkDestroySampler(demo->device, demo->m_Textures[i].sampler, NULL);
     }
 
     for (i = 0; i < demo->swapchainImageCount; i++) {
@@ -2098,14 +2098,14 @@ static void demo_resize(struct demo *demo) {
     vkDestroyPipelineLayout(demo->device, demo->pipeline_layout, NULL);
     vkDestroyDescriptorSetLayout(demo->device, demo->desc_layout, NULL);
 
-    vkDestroyBuffer(demo->device, demo->vertices.buf, NULL);
-    vkFreeMemory(demo->device, demo->vertices.mem, NULL);
+    vkDestroyBuffer(demo->device, demo->m_Vertices.buf, NULL);
+    vkFreeMemory(demo->device, demo->m_Vertices.mem, NULL);
 
     for (i = 0; i < DEMO_TEXTURE_COUNT; i++) {
-        vkDestroyImageView(demo->device, demo->textures[i].view, NULL);
-        vkDestroyImage(demo->device, demo->textures[i].image, NULL);
-        vkFreeMemory(demo->device, demo->textures[i].mem, NULL);
-        vkDestroySampler(demo->device, demo->textures[i].sampler, NULL);
+        vkDestroyImageView(demo->device, demo->m_Textures[i].view, NULL);
+        vkDestroyImage(demo->device, demo->m_Textures[i].image, NULL);
+        vkFreeMemory(demo->device, demo->m_Textures[i].mem, NULL);
+        vkDestroySampler(demo->device, demo->m_Textures[i].sampler, NULL);
     }
 
     for (i = 0; i < demo->swapchainImageCount; i++) {

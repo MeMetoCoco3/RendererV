@@ -1239,7 +1239,7 @@ NK_API const struct nk_command* nk__next(struct nk_context*, const struct nk_com
 /// NK_CONVERT_VERTEX_BUFFER_FULL   | The provided buffer for storing vertices is full or failed to allocate more memory
 /// NK_CONVERT_ELEMENT_BUFFER_FULL  | The provided buffer for storing indicies is full or failed to allocate more memory
 */
-NK_API nk_flags nk_convert(struct nk_context*, struct nk_buffer *cmds, struct nk_buffer *vertices, struct nk_buffer *elements, const struct nk_convert_config*);
+NK_API nk_flags nk_convert(struct nk_context*, struct nk_buffer *cmds, struct nk_buffer *m_Vertices, struct nk_buffer *elements, const struct nk_convert_config*);
 /*/// #### nk__draw_begin
 /// Returns a draw vertex command buffer iterator to iterate over the vertex draw command buffer
 ///
@@ -4735,7 +4735,7 @@ struct nk_draw_list {
     struct nk_convert_config config;
 
     struct nk_buffer *buffer;
-    struct nk_buffer *vertices;
+    struct nk_buffer *m_Vertices;
     struct nk_buffer *elements;
 
     unsigned int element_count;
@@ -4756,7 +4756,7 @@ struct nk_draw_list {
 
 /* draw list */
 NK_API void nk_draw_list_init(struct nk_draw_list*);
-NK_API void nk_draw_list_setup(struct nk_draw_list*, const struct nk_convert_config*, struct nk_buffer *cmds, struct nk_buffer *vertices, struct nk_buffer *elements, enum nk_anti_aliasing line_aa,enum nk_anti_aliasing shape_aa);
+NK_API void nk_draw_list_setup(struct nk_draw_list*, const struct nk_convert_config*, struct nk_buffer *cmds, struct nk_buffer *m_Vertices, struct nk_buffer *elements, enum nk_anti_aliasing line_aa,enum nk_anti_aliasing shape_aa);
 
 /* drawing */
 #define nk_draw_list_foreach(cmd, can, b) for((cmd)=nk__draw_list_begin(can, b); (cmd)!=0; (cmd)=nk__draw_list_next(cmd, b, can))
@@ -9232,21 +9232,21 @@ nk_draw_list_init(struct nk_draw_list *list)
 }
 NK_API void
 nk_draw_list_setup(struct nk_draw_list *canvas, const struct nk_convert_config *config,
-    struct nk_buffer *cmds, struct nk_buffer *vertices, struct nk_buffer *elements,
+    struct nk_buffer *cmds, struct nk_buffer *m_Vertices, struct nk_buffer *elements,
     enum nk_anti_aliasing line_aa, enum nk_anti_aliasing shape_aa)
 {
     NK_ASSERT(canvas);
     NK_ASSERT(config);
     NK_ASSERT(cmds);
-    NK_ASSERT(vertices);
+    NK_ASSERT(m_Vertices);
     NK_ASSERT(elements);
-    if (!canvas || !config || !cmds || !vertices || !elements)
+    if (!canvas || !config || !cmds || !m_Vertices || !elements)
         return;
 
     canvas->buffer = cmds;
     canvas->config = *config;
     canvas->elements = elements;
-    canvas->vertices = vertices;
+    canvas->m_Vertices = m_Vertices;
     canvas->line_AA = line_aa;
     canvas->shape_AA = shape_aa;
     canvas->clip_rect = nk_null_rect;
@@ -9429,7 +9429,7 @@ nk_draw_list_alloc_vertices(struct nk_draw_list *list, nk_size count)
     void *vtx;
     NK_ASSERT(list);
     if (!list) return 0;
-    vtx = nk_buffer_alloc(list->vertices, NK_BUFFER_FRONT,
+    vtx = nk_buffer_alloc(list->m_Vertices, NK_BUFFER_FRONT,
         list->config.vertex_size*count, list->config.vertex_alignment);
     if (!vtx) return 0;
     list->vertex_count += (unsigned int)count;
@@ -9668,15 +9668,15 @@ nk_draw_list_stroke_poly_line(struct nk_draw_list *list, const struct nk_vec2 *p
         if (!vtx || !ids) return;
 
         /* temporary allocate normals + points */
-        vertex_offset = (nk_size)((nk_byte*)vtx - (nk_byte*)list->vertices->memory.ptr);
-        nk_buffer_mark(list->vertices, NK_BUFFER_FRONT);
+        vertex_offset = (nk_size)((nk_byte*)vtx - (nk_byte*)list->m_Vertices->memory.ptr);
+        nk_buffer_mark(list->m_Vertices, NK_BUFFER_FRONT);
         size = pnt_size * ((thick_line) ? 5 : 3) * points_count;
-        normals = (struct nk_vec2*) nk_buffer_alloc(list->vertices, NK_BUFFER_FRONT, size, pnt_align);
+        normals = (struct nk_vec2*) nk_buffer_alloc(list->m_Vertices, NK_BUFFER_FRONT, size, pnt_align);
         if (!normals) return;
         temp = normals + points_count;
 
         /* make sure vertex pointer is still correct */
-        vtx = (void*)((nk_byte*)list->vertices->memory.ptr + vertex_offset);
+        vtx = (void*)((nk_byte*)list->m_Vertices->memory.ptr + vertex_offset);
 
         /* calculate normals */
         for (i1 = 0; i1 < count; ++i1) {
@@ -9815,7 +9815,7 @@ nk_draw_list_stroke_poly_line(struct nk_draw_list *list, const struct nk_vec2 *p
             }
         }
         /* free temporary normals + points */
-        nk_buffer_reset(list->vertices, NK_BUFFER_FRONT);
+        nk_buffer_reset(list->m_Vertices, NK_BUFFER_FRONT);
     } else {
         /* NON ANTI-ALIASED STROKE */
         nk_size i1 = 0;
@@ -9904,12 +9904,12 @@ nk_draw_list_fill_poly_convex(struct nk_draw_list *list,
         if (!vtx || !ids) return;
 
         /* temporary allocate normals */
-        vertex_offset = (nk_size)((nk_byte*)vtx - (nk_byte*)list->vertices->memory.ptr);
-        nk_buffer_mark(list->vertices, NK_BUFFER_FRONT);
+        vertex_offset = (nk_size)((nk_byte*)vtx - (nk_byte*)list->m_Vertices->memory.ptr);
+        nk_buffer_mark(list->m_Vertices, NK_BUFFER_FRONT);
         size = pnt_size * points_count;
-        normals = (struct nk_vec2*) nk_buffer_alloc(list->vertices, NK_BUFFER_FRONT, size, pnt_align);
+        normals = (struct nk_vec2*) nk_buffer_alloc(list->m_Vertices, NK_BUFFER_FRONT, size, pnt_align);
         if (!normals) return;
-        vtx = (void*)((nk_byte*)list->vertices->memory.ptr + vertex_offset);
+        vtx = (void*)((nk_byte*)list->m_Vertices->memory.ptr + vertex_offset);
 
         /* add elements */
         for (i = 2; i < points_count; i++) {
@@ -9964,7 +9964,7 @@ nk_draw_list_fill_poly_convex(struct nk_draw_list *list,
             ids += 6;
         }
         /* free temporary normals + points */
-        nk_buffer_reset(list->vertices, NK_BUFFER_FRONT);
+        nk_buffer_reset(list->m_Vertices, NK_BUFFER_FRONT);
     } else {
         nk_size i = 0;
         nk_size index = list->vertex_count;
@@ -10387,22 +10387,22 @@ nk_draw_list_add_text(struct nk_draw_list *list, const struct nk_user_font *font
 }
 NK_API nk_flags
 nk_convert(struct nk_context *ctx, struct nk_buffer *cmds,
-    struct nk_buffer *vertices, struct nk_buffer *elements,
+    struct nk_buffer *m_Vertices, struct nk_buffer *elements,
     const struct nk_convert_config *config)
 {
     nk_flags res = NK_CONVERT_SUCCESS;
     const struct nk_command *cmd;
     NK_ASSERT(ctx);
     NK_ASSERT(cmds);
-    NK_ASSERT(vertices);
+    NK_ASSERT(m_Vertices);
     NK_ASSERT(elements);
     NK_ASSERT(config);
     NK_ASSERT(config->vertex_layout);
     NK_ASSERT(config->vertex_size);
-    if (!ctx || !cmds || !vertices || !elements || !config || !config->vertex_layout)
+    if (!ctx || !cmds || !m_Vertices || !elements || !config || !config->vertex_layout)
         return NK_CONVERT_INVALID_PARAM;
 
-    nk_draw_list_setup(&ctx->draw_list, config, cmds, vertices, elements,
+    nk_draw_list_setup(&ctx->draw_list, config, cmds, m_Vertices, elements,
         config->line_AA, config->shape_AA);
     nk_foreach(cmd, ctx)
     {
@@ -10523,7 +10523,7 @@ nk_convert(struct nk_context *ctx, struct nk_buffer *cmds,
         }
     }
     res |= (cmds->needed > cmds->allocated + (cmds->memory.size - cmds->size)) ? NK_CONVERT_COMMAND_BUFFER_FULL: 0;
-    res |= (vertices->needed > vertices->allocated) ? NK_CONVERT_VERTEX_BUFFER_FULL: 0;
+    res |= (m_Vertices->needed > m_Vertices->allocated) ? NK_CONVERT_VERTEX_BUFFER_FULL: 0;
     res |= (elements->needed > elements->allocated) ? NK_CONVERT_ELEMENT_BUFFER_FULL: 0;
     return res;
 }
@@ -11298,18 +11298,18 @@ nk_tt_GetGlyphBox(const struct nk_tt_fontinfo *info, int glyph_index,
     return 1;
 }
 NK_INTERN int
-nk_tt__close_shape(struct nk_tt_vertex *vertices, int num_vertices, int was_off,
+nk_tt__close_shape(struct nk_tt_vertex *m_Vertices, int num_vertices, int was_off,
     int start_off, nk_int sx, nk_int sy, nk_int scx, nk_int scy, nk_int cx, nk_int cy)
 {
    if (start_off) {
       if (was_off)
-         nk_tt_setvertex(&vertices[num_vertices++], NK_TT_vcurve, (cx+scx)>>1, (cy+scy)>>1, cx,cy);
-      nk_tt_setvertex(&vertices[num_vertices++], NK_TT_vcurve, sx,sy,scx,scy);
+         nk_tt_setvertex(&m_Vertices[num_vertices++], NK_TT_vcurve, (cx+scx)>>1, (cy+scy)>>1, cx,cy);
+      nk_tt_setvertex(&m_Vertices[num_vertices++], NK_TT_vcurve, sx,sy,scx,scy);
    } else {
       if (was_off)
-         nk_tt_setvertex(&vertices[num_vertices++], NK_TT_vcurve,sx,sy,cx,cy);
+         nk_tt_setvertex(&m_Vertices[num_vertices++], NK_TT_vcurve,sx,sy,cx,cy);
       else
-         nk_tt_setvertex(&vertices[num_vertices++], NK_TT_vline,sx,sy,0,0);
+         nk_tt_setvertex(&m_Vertices[num_vertices++], NK_TT_vline,sx,sy,0,0);
    }
    return num_vertices;
 }
@@ -11320,7 +11320,7 @@ nk_tt_GetGlyphShape(const struct nk_tt_fontinfo *info, struct nk_allocator *allo
     nk_short numberOfContours;
     const nk_byte *endPtsOfContours;
     const nk_byte *data = info->data;
-    struct nk_tt_vertex *vertices=0;
+    struct nk_tt_vertex *m_Vertices=0;
     int num_vertices=0;
     int g = nk_tt__GetGlyfOffset(info, glyph_index);
     *pvertices = 0;
@@ -11338,8 +11338,8 @@ nk_tt_GetGlyphShape(const struct nk_tt_fontinfo *info, struct nk_allocator *allo
 
         n = 1+nk_ttUSHORT(endPtsOfContours + numberOfContours*2-2);
         m = n + 2*numberOfContours;  /* a loose bound on how many vertices we might need */
-        vertices = (struct nk_tt_vertex *)alloc->alloc(alloc->userdata, 0, (nk_size)m * sizeof(vertices[0]));
-        if (vertices == 0)
+        m_Vertices = (struct nk_tt_vertex *)alloc->alloc(alloc->userdata, 0, (nk_size)m * sizeof(m_Vertices[0]));
+        if (m_Vertices == 0)
             return 0;
 
         next_move = 0;
@@ -11357,13 +11357,13 @@ nk_tt_GetGlyphShape(const struct nk_tt_fontinfo *info, struct nk_allocator *allo
                 if (flags & 8)
                     flagcount = *points++;
             } else --flagcount;
-            vertices[off+i].type = flags;
+            m_Vertices[off+i].type = flags;
         }
 
         /* now load x coordinates */
         x=0;
         for (i=0; i < n; ++i) {
-            flags = vertices[off+i].type;
+            flags = m_Vertices[off+i].type;
             if (flags & 2) {
                 nk_short dx = *points++;
                 x += (flags & 16) ? dx : -dx; /* ??? */
@@ -11373,13 +11373,13 @@ nk_tt_GetGlyphShape(const struct nk_tt_fontinfo *info, struct nk_allocator *allo
                     points += 2;
                 }
             }
-            vertices[off+i].x = (nk_short) x;
+            m_Vertices[off+i].x = (nk_short) x;
         }
 
         /* now load y coordinates */
         y=0;
         for (i=0; i < n; ++i) {
-            flags = vertices[off+i].type;
+            flags = m_Vertices[off+i].type;
             if (flags & 4) {
                 nk_short dy = *points++;
                 y += (flags & 32) ? dy : -dy; /* ??? */
@@ -11389,7 +11389,7 @@ nk_tt_GetGlyphShape(const struct nk_tt_fontinfo *info, struct nk_allocator *allo
                     points += 2;
                 }
             }
-            vertices[off+i].y = (nk_short) y;
+            m_Vertices[off+i].y = (nk_short) y;
         }
 
         /* now convert them to our format */
@@ -11397,13 +11397,13 @@ nk_tt_GetGlyphShape(const struct nk_tt_fontinfo *info, struct nk_allocator *allo
         sx = sy = cx = cy = scx = scy = 0;
         for (i=0; i < n; ++i)
         {
-            flags = vertices[off+i].type;
-            x     = (nk_short) vertices[off+i].x;
-            y     = (nk_short) vertices[off+i].y;
+            flags = m_Vertices[off+i].type;
+            x     = (nk_short) m_Vertices[off+i].x;
+            y     = (nk_short) m_Vertices[off+i].y;
 
             if (next_move == i) {
                 if (i != 0)
-                    num_vertices = nk_tt__close_shape(vertices, num_vertices, was_off, start_off, sx,sy,scx,scy,cx,cy);
+                    num_vertices = nk_tt__close_shape(m_Vertices, num_vertices, was_off, start_off, sx,sy,scx,scy,cx,cy);
 
                 /* now start the new one                */
                 start_off = !(flags & 1);
@@ -11412,21 +11412,21 @@ nk_tt_GetGlyphShape(const struct nk_tt_fontinfo *info, struct nk_allocator *allo
                     /* where we can start, and we need to save some state for when we wraparound. */
                     scx = x;
                     scy = y;
-                    if (!(vertices[off+i+1].type & 1)) {
+                    if (!(m_Vertices[off+i+1].type & 1)) {
                         /* next point is also a curve point, so interpolate an on-point curve */
-                        sx = (x + (nk_int) vertices[off+i+1].x) >> 1;
-                        sy = (y + (nk_int) vertices[off+i+1].y) >> 1;
+                        sx = (x + (nk_int) m_Vertices[off+i+1].x) >> 1;
+                        sy = (y + (nk_int) m_Vertices[off+i+1].y) >> 1;
                     } else {
                         /* otherwise just use the next point as our start point */
-                        sx = (nk_int) vertices[off+i+1].x;
-                        sy = (nk_int) vertices[off+i+1].y;
+                        sx = (nk_int) m_Vertices[off+i+1].x;
+                        sy = (nk_int) m_Vertices[off+i+1].y;
                         ++i; /* we're using point i+1 as the starting point, so skip it */
                     }
                 } else {
                     sx = x;
                     sy = y;
                 }
-                nk_tt_setvertex(&vertices[num_vertices++], NK_TT_vmove,sx,sy,0,0);
+                nk_tt_setvertex(&m_Vertices[num_vertices++], NK_TT_vmove,sx,sy,0,0);
                 was_off = 0;
                 next_move = 1 + nk_ttUSHORT(endPtsOfContours+j*2);
                 ++j;
@@ -11434,25 +11434,25 @@ nk_tt_GetGlyphShape(const struct nk_tt_fontinfo *info, struct nk_allocator *allo
                 if (!(flags & 1))
                 { /* if it's a curve */
                     if (was_off) /* two off-curve control points in a row means interpolate an on-curve midpoint */
-                        nk_tt_setvertex(&vertices[num_vertices++], NK_TT_vcurve, (cx+x)>>1, (cy+y)>>1, cx, cy);
+                        nk_tt_setvertex(&m_Vertices[num_vertices++], NK_TT_vcurve, (cx+x)>>1, (cy+y)>>1, cx, cy);
                     cx = x;
                     cy = y;
                     was_off = 1;
                 } else {
                     if (was_off)
-                        nk_tt_setvertex(&vertices[num_vertices++], NK_TT_vcurve, x,y, cx, cy);
-                    else nk_tt_setvertex(&vertices[num_vertices++], NK_TT_vline, x,y,0,0);
+                        nk_tt_setvertex(&m_Vertices[num_vertices++], NK_TT_vcurve, x,y, cx, cy);
+                    else nk_tt_setvertex(&m_Vertices[num_vertices++], NK_TT_vline, x,y,0,0);
                     was_off = 0;
                 }
             }
         }
-        num_vertices = nk_tt__close_shape(vertices, num_vertices, was_off, start_off, sx,sy,scx,scy,cx,cy);
+        num_vertices = nk_tt__close_shape(m_Vertices, num_vertices, was_off, start_off, sx,sy,scx,scy,cx,cy);
     } else if (numberOfContours == -1) {
         /* Compound shapes. */
         int more = 1;
         const nk_byte *comp = data + g + 10;
         num_vertices = 0;
-        vertices = 0;
+        m_Vertices = 0;
 
         while (more)
         {
@@ -11513,14 +11513,14 @@ nk_tt_GetGlyphShape(const struct nk_tt_fontinfo *info, struct nk_allocator *allo
                 tmp = (struct nk_tt_vertex*)alloc->alloc(alloc->userdata, 0,
                     (nk_size)(num_vertices+comp_num_verts)*sizeof(struct nk_tt_vertex));
                 if (!tmp) {
-                    if (vertices) alloc->free(alloc->userdata, vertices);
+                    if (m_Vertices) alloc->free(alloc->userdata, m_Vertices);
                     if (comp_verts) alloc->free(alloc->userdata, comp_verts);
                     return 0;
                 }
-                if (num_vertices > 0) NK_MEMCPY(tmp, vertices, (nk_size)num_vertices*sizeof(struct nk_tt_vertex));
+                if (num_vertices > 0) NK_MEMCPY(tmp, m_Vertices, (nk_size)num_vertices*sizeof(struct nk_tt_vertex));
                 NK_MEMCPY(tmp+num_vertices, comp_verts, (nk_size)comp_num_verts*sizeof(struct nk_tt_vertex));
-                if (vertices) alloc->free(alloc->userdata,vertices);
-                vertices = tmp;
+                if (m_Vertices) alloc->free(alloc->userdata,m_Vertices);
+                m_Vertices = tmp;
                 alloc->free(alloc->userdata,comp_verts);
                 num_vertices += comp_num_verts;
             }
@@ -11533,7 +11533,7 @@ nk_tt_GetGlyphShape(const struct nk_tt_fontinfo *info, struct nk_allocator *allo
     } else {
         /* numberOfCounters == 0, do nothing */
     }
-    *pvertices = vertices;
+    *pvertices = m_Vertices;
     return num_vertices;
 }
 NK_INTERN void
@@ -12131,7 +12131,7 @@ nk_tt__tesselate_curve(struct nk_tt__point *points, int *num_points,
     return 1;
 }
 NK_INTERN struct nk_tt__point*
-nk_tt_FlattenCurves(struct nk_tt_vertex *vertices, int num_verts,
+nk_tt_FlattenCurves(struct nk_tt_vertex *m_Vertices, int num_verts,
     float objspace_flatness, int **contour_lengths, int *num_contours,
     struct nk_allocator *alloc)
 {
@@ -12146,7 +12146,7 @@ nk_tt_FlattenCurves(struct nk_tt_vertex *vertices, int num_verts,
 
     /* count how many "moves" there are to get the contour count */
     for (i=0; i < num_verts; ++i)
-        if (vertices[i].type == NK_TT_vmove) ++n;
+        if (m_Vertices[i].type == NK_TT_vmove) ++n;
 
     *num_contours = n;
     if (n == 0) return 0;
@@ -12172,7 +12172,7 @@ nk_tt_FlattenCurves(struct nk_tt_vertex *vertices, int num_verts,
 
         for (i=0; i < num_verts; ++i)
         {
-            switch (vertices[i].type) {
+            switch (m_Vertices[i].type) {
             case NK_TT_vmove:
                 /* start the next contour */
                 if (n >= 0)
@@ -12180,19 +12180,19 @@ nk_tt_FlattenCurves(struct nk_tt_vertex *vertices, int num_verts,
                 ++n;
                 start = num_points;
 
-                x = vertices[i].x, y = vertices[i].y;
+                x = m_Vertices[i].x, y = m_Vertices[i].y;
                 nk_tt__add_point(points, num_points++, x,y);
                 break;
             case NK_TT_vline:
-               x = vertices[i].x, y = vertices[i].y;
+               x = m_Vertices[i].x, y = m_Vertices[i].y;
                nk_tt__add_point(points, num_points++, x, y);
                break;
             case NK_TT_vcurve:
                nk_tt__tesselate_curve(points, &num_points, x,y,
-                                        vertices[i].cx, vertices[i].cy,
-                                        vertices[i].x,  vertices[i].y,
+                                        m_Vertices[i].cx, m_Vertices[i].cy,
+                                        m_Vertices[i].x,  m_Vertices[i].y,
                                         objspace_flatness_squared, 0);
-               x = vertices[i].x, y = vertices[i].y;
+               x = m_Vertices[i].x, y = m_Vertices[i].y;
                break;
             default: break;
          }
@@ -12210,13 +12210,13 @@ error:
 }
 NK_INTERN void
 nk_tt_Rasterize(struct nk_tt__bitmap *result, float flatness_in_pixels,
-    struct nk_tt_vertex *vertices, int num_verts,
+    struct nk_tt_vertex *m_Vertices, int num_verts,
     float scale_x, float scale_y, float shift_x, float shift_y,
     int x_off, int y_off, int invert, struct nk_allocator *alloc)
 {
     float scale = scale_x > scale_y ? scale_y : scale_x;
     int winding_count, *winding_lengths;
-    struct nk_tt__point *windings = nk_tt_FlattenCurves(vertices, num_verts,
+    struct nk_tt__point *windings = nk_tt_FlattenCurves(m_Vertices, num_verts,
         flatness_in_pixels / scale, &winding_lengths, &winding_count, alloc);
 
     NK_ASSERT(alloc);
@@ -12233,8 +12233,8 @@ nk_tt_MakeGlyphBitmapSubpixel(const struct nk_tt_fontinfo *info, unsigned char *
     float shift_x, float shift_y, int glyph, struct nk_allocator *alloc)
 {
     int ix0,iy0;
-    struct nk_tt_vertex *vertices;
-    int num_verts = nk_tt_GetGlyphShape(info, alloc, glyph, &vertices);
+    struct nk_tt_vertex *m_Vertices;
+    int num_verts = nk_tt_GetGlyphShape(info, alloc, glyph, &m_Vertices);
     struct nk_tt__bitmap gbm;
 
     nk_tt_GetGlyphBitmapBoxSubpixel(info, glyph, scale_x, scale_y, shift_x,
@@ -12245,9 +12245,9 @@ nk_tt_MakeGlyphBitmapSubpixel(const struct nk_tt_fontinfo *info, unsigned char *
     gbm.stride = out_stride;
 
     if (gbm.w && gbm.h)
-        nk_tt_Rasterize(&gbm, 0.35f, vertices, num_verts, scale_x, scale_y,
+        nk_tt_Rasterize(&gbm, 0.35f, m_Vertices, num_verts, scale_x, scale_y,
             shift_x, shift_y, ix0,iy0, 1, alloc);
-    alloc->free(alloc->userdata, vertices);
+    alloc->free(alloc->userdata, m_Vertices);
 }
 
 /*-------------------------------------------------------------
