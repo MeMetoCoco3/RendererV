@@ -50,7 +50,8 @@ private:
 class Model 
 {
 public:
-	Model(const char* path)
+
+	Model(const std::string &path)
 	{
 		LoadModel(path);
 	}

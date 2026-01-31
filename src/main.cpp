@@ -35,7 +35,6 @@ bool firstMouse = true;
 int main() 
 {
 	Logger::SetLevelDefault();
-
 	
 	GLFWwindow *Window = GetGLFWWindow();
 	glViewport(0, 0, WIDTH, HEIGHT);
@@ -47,12 +46,14 @@ int main()
 	Shader shader(SHADERS_PATH "vs.glsl", SHADERS_PATH "fs.glsl");
 
 	glEnable(GL_CULL_FACE);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+	//	glEnable(GL_BLEND);
+	// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	//Quad quad(1);
 	//quad.AddTexture(TEXTURE_PATH "wood.png");
-	Model Backpack("G:\\Render\\assets\\backpack\\backpack.obj");
+	Model Backpack(R"(G:\Render\assets\backpack\backpack.obj)");
 	glm::mat4 model_mat = glm::mat4(1.0f);
 	model_mat = glm::translate(model_mat, glm::vec3(0.0f, .0f, -2.0f));
 
@@ -69,7 +70,8 @@ int main()
 		
 
 		glClearColor(0.1f, 0.4f, 0.7f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		shader.UseProgram();
 		shader.SetMat4("model_mat", model_mat);
 		shader.SetMat4("proj_mat", proj_mat);
 		shader.SetMat4("view_mat", camera.GetViewMatrix());
@@ -91,7 +93,6 @@ void ProcessInput(GLFWwindow * window, f32 delta_time)
 {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
-
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
 		camera.ProcessKeyboard(FORWARD, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -121,7 +122,7 @@ GLFWwindow* GetGLFWWindow()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-	GLFWwindow* Window = glfwCreateWindow(WIDTH, HEIGHT, "Perlin Noise", NULL, NULL);
+	GLFWwindow* Window = glfwCreateWindow(WIDTH, HEIGHT, "Render", NULL, NULL);
 	if (Window == NULL)
 	{
 		glfwTerminate();

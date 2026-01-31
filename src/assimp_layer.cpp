@@ -57,7 +57,7 @@ void Mesh::Draw(Shader& shader)
 			number = std::to_string(NumDiffuse++);
 		else if (name == "texture_specular")
 			number = std::to_string(NumSpecular++);
-		shader.SetFloat(("material." + name + number).c_str(), i);
+		shader.SetInt(("material." + name + number).c_str(), i);
 		glBindTexture(GL_TEXTURE_2D, m_Textures[i].Id);
 	}
 	glActiveTexture(GL_TEXTURE0);
@@ -82,7 +82,8 @@ void Model::LoadModel(std::string path)
 		std::cout << "ERROR::ASSIMP::" << Imp.GetErrorString() << std::endl;
 		return;
 	}
-	m_Directory = path.substr(0, path.find_last_of('/'));
+	m_Directory = path.substr(0, path.find_last_of('\\'));
+	m_Directory += "\\";
 	ProcessNode(Scene->mRootNode, Scene);
 }
 
@@ -177,12 +178,11 @@ std::vector<s_Texture> Model::LoadMaterialTextures(aiMaterial* mat, aiTextureTyp
 		s_Texture Texture;
 		if (it == g_TextureResources.end())
 		{
-			Texture.Id = TextureFromFile(Str.C_Str());
+			Texture.Id = TextureFromFile(m_Directory + Str.C_Str());
 			Texture.Type = type_name;
 			Texture.Path = std::string(Str.C_Str());
 			Textures.push_back(Texture);
 			g_TextureResources[Str.C_Str()] = Texture;
-			Textures.push_back(Texture);
 		}
 		else
 		{
@@ -197,7 +197,7 @@ u32 TextureFromFile(const std::string file_path)
 {
 	u32 TextureID;
 	
-	glGenTextures(0, &TextureID);
+	glGenTextures(1, &TextureID);
 	glBindTexture(GL_TEXTURE_2D, TextureID);
 
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -217,26 +217,27 @@ u32 TextureFromFile(const std::string file_path)
 	GLenum ImageFormat;
 
 	unsigned char* data = stbi_load(file_path.c_str(), &Width, &Height, &NumChannels, 0);
-	switch (NumChannels)
-	{
-	case 1: {
-		ImageFormat = GL_RED;
-	} break;
-	case 3: {
-		ImageFormat = GL_RGB;
-	} break;
-	case 4: {
-		ImageFormat = GL_RGBA;
-	} break;
-	default: {
-		throw std::runtime_error("IMAGE FORMAT NOT SUPOORTED");
-	}
-	}
 
 	if (data)
 	{
+		switch (NumChannels)
+		{
+		case 1: {
+			ImageFormat = GL_RED;
+		} break;
+		case 3: {
+			ImageFormat = GL_RGB;
+		} break;
+		case 4: {
+			ImageFormat = GL_RGBA;
+		} break;
+		default: {
+			throw std::runtime_error("IMAGE FORMAT NOT SUPOORTED");
+		} break;
+		}
+
 		glTexImage2D(
-			GL_TEXTURE_2D, 0, GL_RGBA,
+			GL_TEXTURE_2D, 0, ImageFormat,
 			Width, Height, 0, ImageFormat,
 			GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
