@@ -54,6 +54,7 @@ public:
 	Model(const std::string &path)
 	{
 		LoadModel(path);
+        printf("%s Loaded\n", path.c_str());
 	}
 	void Draw(Shader& shader);
 private:

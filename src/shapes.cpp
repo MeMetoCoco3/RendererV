@@ -1,9 +1,19 @@
 #include "shapes.h"
-#include "algorithm"
+#include "shaders.h"
+#include <stdexcept>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include <string>
 
+void Shape::BindVAO(void)
+{
+    glBindVertexArray(m_VAO);
+}
+void Shape::DrawIndices(void)
+{
+    glDrawElements(GL_TRIANGLES, m_Indices.size(), GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
 void Shape::Draw(const Shader& shader)
 {
 	shader.UseProgram();

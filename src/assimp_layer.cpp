@@ -18,7 +18,6 @@ Mesh::Mesh(std::vector<s_Vertex> m_Vertices, std::vector<u32> m_Indices, std::ve
 
 void Mesh::m_SetUpMesh() 
 {
-
 	glGenVertexArrays(1, &m_VAO);
 	glGenBuffers(1, &m_VBO);
 	glGenBuffers(1, &m_EBO);

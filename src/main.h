@@ -1,4 +1,6 @@
 #pragma once
+#include <GLFW/glfw3.h>
+#include "vstd/vtypes.h"
 
 GLFWwindow* GetGLFWWindow(void);
 void mouse_callback(GLFWwindow* window, f64 xposIn, f64 yposIn);
