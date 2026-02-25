@@ -1,7 +1,10 @@
 
+#include <array>
 #include <stdexcept>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 #include "vstd/vlogger.h"
 #include "main.h"
 #include "camera.h"
@@ -11,6 +14,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "assimp_layer.h"
 #include "shapes.h"
+#include <imgui.h>
 
 constexpr auto WIDTH = 1000;
 constexpr auto HEIGHT = 800;
@@ -26,16 +30,111 @@ float lastX = WIDTH * 0.5f;
 float lastY = HEIGHT * 0.5f;
 bool firstMouse = true;
 
+constexpr auto MAX_KEYS = 512;
+// {a,b,c, 0, a,b,c, 0}
+// a=pressed, b=down, c=released, 0 to make my life easier
+struct keyboard_state
+{
+    std::array<u8, (MAX_KEYS * 4) / 8> keys;
+    std::array<u16, MAX_KEYS / 8 > keys_released;
+    std::array<u16, MAX_KEYS / 8 > keys_down;
+    u8 count_released;
+    u8 count_down;
+    void set_pressed(int key, bool value)
+    {
+        size_t byte = key / 2;
+        size_t bit_offset = key % 2 != 0 ? 4 : 0;
+        
+        int bit_val = value ? 1 : 0;
+        // First part forces 0 on the desired bit.
+        // Second part is a normal or.
+        keys[byte] = (keys[byte] & ~(1<<bit_offset)) | ((bit_val) << bit_offset);
+    };
+
+    void set_down(int key, bool value)
+    {
+        size_t byte = key / 2;
+        size_t bit_offset = key % 2 != 0 ? 4 + 1 : 0;
+        bit_offset += 1;
+        int bit_val = value ? 1 : 0;
+        keys[byte] = (keys[byte] & ~(1<<bit_offset)) | ((bit_val) << bit_offset);
+
+        if(value) {
+            keys_down[count_down] = key;
+            count_down += 1;
+        }
+    };
+
+    void set_released(int key, bool value)
+    {
+        size_t byte = key / 2;
+        size_t bit_offset = key % 2 != 0 ? 4 : 0;
+        bit_offset += 2;
+
+        int bit_val = value ? 1 : 0;
+        keys[byte] = (keys[byte] & ~(1<<bit_offset)) | ((bit_val) << bit_offset);
+
+        if(value) {
+            keys_down[count_released] = key;
+            count_released += 1;
+        }
+    };
+
+    bool is_pressed(int key) { 
+        size_t byte = key / 2;
+        size_t bit_offset = key % 2 != 0 ? 4 : 0;
+        
+        return keys[byte] & (1 << bit_offset);
+    };
+
+    bool is_down(int key) {
+        size_t byte = key / 2;
+        size_t bit_offset = key % 2 != 0 ? 4 : 0;
+        bit_offset += 1;
+
+        return keys[byte] & (1 << (bit_offset));
+    };
+
+    bool is_released(int key) {
+        size_t byte = key / 2;
+        size_t bit_offset = key % 2 != 0 ? 4 : 0;
+        bit_offset += 2;
+
+        return keys[byte] & (1 << (bit_offset));
+    };
+
+    void reset_state()
+    {
+        for(int i = 0; i < count_released; i++)
+        {
+            set_released(keys_released[i], false);
+        }
+        count_released = 0;
+
+        for(int i = 0; i < count_down; i++)
+        {
+            set_down(keys_down[i], false);
+        }
+        count_down = 0;
+    }
+
+} Keyboard;
+
+
 int main() 
 {
 	Logger::SetLevelDefault();
-	
+
 	GLFWwindow *Window = GetGLFWWindow();
+    glfwSwapInterval(1);
+
+
+
 	glViewport(0, 0, WIDTH, HEIGHT);
 	glfwSetFramebufferSizeCallback(Window, framebuffer_size_callback);	
 	glfwSetCursorPosCallback(Window, mouse_callback);
 	glfwSetScrollCallback(Window, scroll_callback);
-	
+	glfwSetKeyCallback(Window, keyboard_callback);
 	glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	Shader shader(SHADERS_PATH "vs.glsl", SHADERS_PATH "fs.glsl");
     Shader screen_shader(SHADERS_PATH "screen_vs.glsl", SHADERS_PATH "screen_fs.glsl");
@@ -44,24 +143,24 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 
-    unsigned int framebuffer;
+    u32 framebuffer;
     glGenFramebuffers(1, &framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    // create a color attachment texture
-    unsigned int textureColorbuffer;
-    glGenTextures(1, &textureColorbuffer);
-    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+    
+    u32 texture_framebuffer;
+    glGenTextures(1, &texture_framebuffer);
+    glBindTexture(GL_TEXTURE_2D, texture_framebuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
-    // create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
-    unsigned int rbo;
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_framebuffer, 0);
+
+    u32 rbo;
     glGenRenderbuffers(1, &rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT); // use a single renderbuffer object for both a depth AND stencil buffer.
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
-    // now that we actually created the framebuffer and added all attachments we want to check if it is actually complete now
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT); 
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); 
+
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) { 
         printf("ERROR::FRAMEBUFFER:: NOT COMPLETE\n");
     }
@@ -69,6 +168,12 @@ int main()
     screen_shader.SetInt("screen_texture", 0);
     
 
+    auto imgui_ctx = ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImGui::SetCurrentContext(imgui_ctx);
+
+    ImGui_ImplGlfw_InitForOpenGL(Window, true);
+    ImGui_ImplOpenGL3_Init();
 
     // u32 rbo;
     // glGenRenderbuffers(1, &rbo);
@@ -111,19 +216,42 @@ int main()
 		shader.SetMat4("view_mat", camera.GetViewMatrix());
 			
 		Backpack.Draw(shader);
-        //
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        //
         glDisable(GL_DEPTH_TEST);
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        //
         screen_shader.UseProgram();
-        //
+
+// const vec3 colors[5] = vec3[5](vec3(0.95,0.95,0.85), vec3(0.859,0.617,0.507), vec3(0.753,0.43,0.43), vec3(0.08,0.12,0.23), vec3(0.01,0.0,0.152));
+        screen_shader.SetVec3("colors[0]", 0.95, 0.95, 0.85);
+        screen_shader.SetVec3("colors[1]", 0.859, 0.617, 0.507);
+        screen_shader.SetVec3("colors[2]", 0.753, 0.43, 0.43);
+        screen_shader.SetVec3("colors[3]", 0.08, 0.12, 0.23);
+        screen_shader.SetVec3("colors[4]", 0.01, 0.0, 0.152);
+
+
+
         quad.BindVAO();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+        glBindTexture(GL_TEXTURE_2D, texture_framebuffer);
         quad.DrawIndices();
+        
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        {
+            static int counter = 0;
+
+            ImGui::Begin("Hello, world!");
+            ImGui::SameLine();
+            ImGui::Text("counter = %d", counter);
+
+            ImGui::End();
+        }
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		glfwSwapBuffers(Window);
 		glfwPollEvents();
 	}
@@ -135,8 +263,9 @@ int main()
 }
 
 
-void ProcessInput(GLFWwindow * window, f32 delta_time)
+void ProcessInput(GLFWwindow *window, f32 delta_time)
 {
+
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -147,6 +276,18 @@ void ProcessInput(GLFWwindow * window, f32 delta_time)
 		camera.ProcessKeyboard(LEFT, delta_time);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		camera.ProcessKeyboard(RIGHT, delta_time);
+    if (Keyboard.is_down(GLFW_KEY_P)){
+        int cursor_state = glfwGetInputMode(window, GLFW_CURSOR);
+        if (cursor_state == GLFW_CURSOR_DISABLED){
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+        else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); 
+        }
+    }
+
+    // This is at the end because the POLLEVENTS is called at the end of the loop, so we process here the stuff then reset.
+    Keyboard.reset_state();
 }
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -212,3 +353,22 @@ void scroll_callback(GLFWwindow* window, f64 xoffset, f64 yoffset)
 {
 	camera.ProcessMouseScroll(static_cast<f32>(yoffset));
 }
+
+
+void keyboard_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+    if(action == GLFW_PRESS)
+    {
+        if (!Keyboard.is_pressed(key)){
+            Keyboard.set_down(key, true);
+        }
+        Keyboard.set_pressed(key, true);
+    }
+    
+    if(action == GLFW_RELEASE)
+    {
+        Keyboard.set_released(key, true);
+        Keyboard.set_pressed(key, false);
+    }
+}
+

@@ -62,8 +62,6 @@ public:
                 f32 U = f32(x) / f32(m_DefinitionLevel);
                 f32 V = f32(y) / f32(m_DefinitionLevel);
 				m_Vertices.push_back({NDCX, NDCY, 0.0f, U, V});
-                printf("X: %02f Y: %02f\n", NDCX, NDCY);
-                printf("U: %02f V: %02f\n", U, V);
 			}
 		}
 		m_Indices.reserve(m_DefinitionLevel * m_DefinitionLevel * 6);

@@ -18,6 +18,8 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)   # <-- IMPORTANT
 
 add_subdirectory(dependencies/glfw-3.4)
 add_subdirectory(dependencies/assimp)
+add_subdirectory(dependencies/imgui)
+
 # --- Collect source files ---
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
@@ -29,6 +31,11 @@ add_executable(Render ${MY_SOURCES})
 
 target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC SHADERS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")
 target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC TEXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/textures/")
+
+
+target_include_directories(imgui PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw-3.4/include"
+)
 
 target_include_directories(Render PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/include"
@@ -49,5 +56,6 @@ if (WIN32)
         user32
         shell32
         assimp
+        imgui
     )
 endif()
