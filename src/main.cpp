@@ -25,6 +25,11 @@ constexpr auto FAR_PLANE = 100.0f;
 
 //constexpr auto CHANNEL_NUM = 4;
 
+struct {
+    bool move_camera = true;
+} Cursor;
+
+
 Camera camera({ 0.0f, 0.0f, 3.0f });
 float lastX = WIDTH * 0.5f;
 float lastY = HEIGHT * 0.5f;
@@ -103,8 +108,7 @@ struct keyboard_state
         return keys[byte] & (1 << (bit_offset));
     };
 
-    void reset_state()
-    {
+    void reset_state() {
         for(int i = 0; i < count_released; i++)
         {
             set_released(keys_released[i], false);
@@ -116,7 +120,7 @@ struct keyboard_state
             set_down(keys_down[i], false);
         }
         count_down = 0;
-    }
+    };
 
 } Keyboard;
 
@@ -135,7 +139,11 @@ int main()
 	glfwSetCursorPosCallback(Window, mouse_callback);
 	glfwSetScrollCallback(Window, scroll_callback);
 	glfwSetKeyCallback(Window, keyboard_callback);
-	glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        
+    if (Cursor.move_camera){
+        glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
+
 	Shader shader(SHADERS_PATH "vs.glsl", SHADERS_PATH "fs.glsl");
     Shader screen_shader(SHADERS_PATH "screen_vs.glsl", SHADERS_PATH "screen_fs.glsl");
 
@@ -196,6 +204,17 @@ int main()
 
     Quad quad(1);
 
+    vec4 colors[5];
+    colors[0] = {0.95, 0.95, 0.85, 1.0};
+    colors[1] = {0.859, 0.617, 0.507, 1.0};
+    colors[2] = {0.753, 0.43, 0.43, 1.0};
+    colors[3] = {0.08, 0.12, 0.23, 1.0};
+    colors[4] = {0.01, 0.0, 0.152, 1.0};
+    
+    bool no_postprocessing = false;
+
+
+
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	while (!glfwWindowShouldClose(Window))
 	{
@@ -222,13 +241,14 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
         screen_shader.UseProgram();
 
-// const vec3 colors[5] = vec3[5](vec3(0.95,0.95,0.85), vec3(0.859,0.617,0.507), vec3(0.753,0.43,0.43), vec3(0.08,0.12,0.23), vec3(0.01,0.0,0.152));
-        screen_shader.SetVec3("colors[0]", 0.95, 0.95, 0.85);
-        screen_shader.SetVec3("colors[1]", 0.859, 0.617, 0.507);
-        screen_shader.SetVec3("colors[2]", 0.753, 0.43, 0.43);
-        screen_shader.SetVec3("colors[3]", 0.08, 0.12, 0.23);
-        screen_shader.SetVec3("colors[4]", 0.01, 0.0, 0.152);
-
+        // const vec3 colors[5] = vec3[5](vec3(0.95,0.95,0.85), vec3(0.859,0.617,0.507), vec3(0.753,0.43,0.43), vec3(0.08,0.12,0.23), vec3(0.01,0.0,0.152));
+        screen_shader.SetVec4("colors[0]", colors[0].x, colors[0].y, colors[0].z, colors[0].w);
+        screen_shader.SetVec4("colors[1]", colors[1].x, colors[1].y, colors[1].z, colors[1].w);
+        screen_shader.SetVec4("colors[2]", colors[2].x, colors[2].y, colors[2].z, colors[2].w);
+        screen_shader.SetVec4("colors[3]", colors[3].x, colors[3].y, colors[3].z, colors[3].w);
+        screen_shader.SetVec4("colors[4]", colors[4].x, colors[4].y, colors[4].z, colors[4].w);
+    
+        screen_shader.SetBool("no_postprocessing", no_postprocessing);
 
 
         quad.BindVAO();
@@ -241,12 +261,16 @@ int main()
         ImGui::NewFrame();
 
         {
-            static int counter = 0;
-
-            ImGui::Begin("Hello, world!");
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
+            ImGui::SetNextWindowSize({330, 220});
+            ImGui::Begin("Select Color Gradient");
+            ImGui::SeparatorText("Color Gradient");
+            ImGui::ColorEdit4("Color [0]", &colors[0].x);
+            ImGui::ColorEdit4("Color [1]", &colors[1].x);
+            ImGui::ColorEdit4("Color [2]", &colors[2].x);
+            ImGui::ColorEdit4("Color [3]", &colors[3].x);
+            ImGui::ColorEdit4("Color [4]", &colors[4].x);
+            ImGui::SeparatorText("Draw Original");
+            ImGui::Checkbox("Original", &no_postprocessing);
             ImGui::End();
         }
 
@@ -255,38 +279,37 @@ int main()
 		glfwSwapBuffers(Window);
 		glfwPollEvents();
 	}
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext(imgui_ctx);
 
 	glfwTerminate();
-    // glDeleteFramebuffers(1, &fbo);
-	//VirtualFree(ColorBuffer, 0, MEM_RELEASE);
+    glDeleteFramebuffers(1, &framebuffer);
+    
 	return 0;
 }
 
 
 void ProcessInput(GLFWwindow *window, f32 delta_time)
 {
-
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, true);
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		camera.ProcessKeyboard(FORWARD, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		camera.ProcessKeyboard(BACKWARD, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		camera.ProcessKeyboard(LEFT, delta_time);
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		camera.ProcessKeyboard(RIGHT, delta_time);
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.ProcessKeyboard(FORWARD, delta_time);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.ProcessKeyboard(BACKWARD, delta_time);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.ProcessKeyboard(LEFT, delta_time);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.ProcessKeyboard(RIGHT, delta_time);
     if (Keyboard.is_down(GLFW_KEY_P)){
-        int cursor_state = glfwGetInputMode(window, GLFW_CURSOR);
-        if (cursor_state == GLFW_CURSOR_DISABLED){
+        Cursor.move_camera = !Cursor.move_camera;
+        if (Cursor.move_camera)
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        else 
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        }
-        else {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); 
-        }
     }
-
-    // This is at the end because the POLLEVENTS is called at the end of the loop, so we process here the stuff then reset.
+    // This is at the end because the POLLEVENTS is called at the end of the loop
     Keyboard.reset_state();
 }
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -329,23 +352,26 @@ GLFWwindow* GetGLFWWindow()
 
 void mouse_callback(GLFWwindow* window, f64 xposIn, f64 yposIn)
 {
-	float xpos = static_cast<f32>(xposIn);
-	float ypos = static_cast<f32>(yposIn);
+    if(Cursor.move_camera)
+    {
+        float xpos = static_cast<f32>(xposIn);
+        float ypos = static_cast<f32>(yposIn);
 
-	if (firstMouse)
-	{
-		lastX = xpos;
-		lastY = ypos;
-		firstMouse = false;
-	}
+        if (firstMouse)
+        {
+            lastX = xpos;
+            lastY = ypos;
+            firstMouse = false;
+        }
 
-	float xoffset = xpos - lastX;
-	float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+        float xoffset = xpos - lastX;
+        float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
 
-	lastX = xpos;
-	lastY = ypos;
+        lastX = xpos;
+        lastY = ypos;
 
-	camera.ProcessMouseMovement(xoffset, yoffset);
+        camera.ProcessMouseMovement(xoffset, yoffset);
+    }
 }
 
 

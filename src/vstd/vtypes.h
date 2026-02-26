@@ -61,6 +61,26 @@ struct vec2
 	}
 };
 
+struct vec4
+{
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 w;
+
+	vec4() : x(0.0f), y(0.0f), z(0.0f), w(0.0f) {};
+	vec4(f32 a, f32 b, f32 c, f32 d) : x(a), y(b), z(c), w(d){}
+
+	std::string to_string(void) const
+	{
+		char buffer[64];
+		std::snprintf(buffer, sizeof(buffer), "%.2f, %.2f, %.2f, %.2f\n", x, y, z, w);
+		return buffer;
+	}
+};
+
+
+
 struct vec3
 {
     f32 x;
@@ -102,8 +122,6 @@ struct vec3
 		z -= other.z;
 		return *this;
 	}
-
-
 };
 
 
