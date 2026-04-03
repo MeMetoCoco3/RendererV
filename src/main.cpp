@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include "glm/ext/matrix_clip_space.hpp"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "vstd/vlogger.h"
@@ -155,18 +156,20 @@ int main()
     glGenFramebuffers(1, &framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     
+
+    f32 fbo_size[2] = {WIDTH * 0.2f, HEIGHT * 0.2f};
+
     u32 texture_framebuffer;
     glGenTextures(1, &texture_framebuffer);
     glBindTexture(GL_TEXTURE_2D, texture_framebuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WIDTH, HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fbo_size[0] , fbo_size[1], 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_framebuffer, 0);
-
     u32 rbo;
     glGenRenderbuffers(1, &rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT); 
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, fbo_size[0] , fbo_size[1]); 
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); 
 
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) { 
@@ -183,22 +186,25 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(Window, true);
     ImGui_ImplOpenGL3_Init();
 
-    // u32 rbo;
-    // glGenRenderbuffers(1, &rbo);
-    // glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    // glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WIDTH, HEIGHT);
-    // glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-    //
-    // if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) { 
-    //     printf("ERROR::FRAMEBUFFER:: NOT COMPLETE\n");
-    // }
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 	Model Backpack(R"(G:\Render\assets\backpack\backpack.obj)");
 	glm::mat4 model_mat = glm::mat4(1.0f);
 	model_mat = glm::translate(model_mat, glm::vec3(0.0f, .0f, -2.0f));
 
+
 	glm::mat4 proj_mat = glm::perspective(glm::radians(FOVY), ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
+
+
+    f32 top = 2.0f * glm::tan(glm::radians(FOVY)/2.0f);
+    f32 bottom = -top;
+    f32 right = top * ASPECT_RATIO;
+    f32 left = -right;
+
+
+    
+    glm::mat4 ortho_mat = glm::ortho(left, right, bottom, top, NEAR_PLANE, FAR_PLANE);
+
+    bool draw_ortho = true;
+
 	f32 delta_time = 0.0f;
 	f32 last_frame = 0.0f;
 
@@ -224,18 +230,24 @@ int main()
 
 		ProcessInput(Window, delta_time);
 		
-
+        glViewport(0, 0, fbo_size[0], fbo_size[1]);
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         glEnable(GL_DEPTH_TEST);
 		glClearColor(0.1f, 0.4f, 0.7f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		shader.UseProgram();
 		shader.SetMat4("model_mat", model_mat);
-		shader.SetMat4("proj_mat", proj_mat);
+        if(!draw_ortho){
+            shader.SetMat4("proj_mat", proj_mat);
+        } else {
+            shader.SetMat4("proj_mat", ortho_mat);
+        }
 		shader.SetMat4("view_mat", camera.GetViewMatrix());
 			
 		Backpack.Draw(shader);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glViewport(0, 0, WIDTH, HEIGHT);
         glDisable(GL_DEPTH_TEST);
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -250,12 +262,12 @@ int main()
     
         screen_shader.SetBool("no_postprocessing", no_postprocessing);
 
-
         quad.BindVAO();
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture_framebuffer);
         quad.DrawIndices();
-        
+    
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -270,6 +282,7 @@ int main()
             ImGui::ColorEdit4("Color [3]", &colors[3].x);
             ImGui::ColorEdit4("Color [4]", &colors[4].x);
             ImGui::SeparatorText("Draw Original");
+            ImGui::Checkbox("Draw ortho", &draw_ortho);
             ImGui::Checkbox("Original", &no_postprocessing);
             ImGui::End();
         }
