@@ -21,8 +21,8 @@ constexpr auto WIDTH = 1000;
 constexpr auto HEIGHT = 800;
 constexpr auto ASPECT_RATIO = (f32)WIDTH / (f32)HEIGHT;
 constexpr auto FOVY = 45.0f;
-constexpr auto NEAR_PLANE = 0.01f;
-constexpr auto FAR_PLANE = 100.0f;
+static auto NEAR_PLANE = 0.01f;
+static auto FAR_PLANE = 100.0f;
 
 //constexpr auto CHANNEL_NUM = 4;
 
@@ -156,8 +156,8 @@ int main()
     glGenFramebuffers(1, &framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     
-
-    f32 fbo_size[2] = {WIDTH * 0.2f, HEIGHT * 0.2f};
+    f32 ratio = 0.4f;
+    f32 fbo_size[2] = {WIDTH * ratio, HEIGHT * ratio};
 
     u32 texture_framebuffer;
     glGenTextures(1, &texture_framebuffer);
@@ -194,15 +194,13 @@ int main()
 	glm::mat4 proj_mat = glm::perspective(glm::radians(FOVY), ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
 
 
-    f32 top = 2.0f * glm::tan(glm::radians(FOVY)/2.0f);
+    f32 top = 10.0f * glm::tan(glm::radians(FOVY)/2.0f);
     f32 bottom = -top;
     f32 right = top * ASPECT_RATIO;
     f32 left = -right;
 
 
     
-    glm::mat4 ortho_mat = glm::ortho(left, right, bottom, top, NEAR_PLANE, FAR_PLANE);
-
     bool draw_ortho = true;
 
 	f32 delta_time = 0.0f;
@@ -224,6 +222,10 @@ int main()
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	while (!glfwWindowShouldClose(Window))
 	{
+        glm::mat4 ortho_mat = glm::ortho(left, right, bottom, top, NEAR_PLANE, FAR_PLANE);
+
+
+
 		f32 current_frame = static_cast<f32>(glfwGetTime());
 		delta_time = current_frame - last_frame;
 		last_frame = current_frame;
@@ -274,14 +276,16 @@ int main()
 
         {
             ImGui::SetNextWindowSize({330, 220});
-            ImGui::Begin("Select Color Gradient");
-            ImGui::SeparatorText("Color Gradient");
-            ImGui::ColorEdit4("Color [0]", &colors[0].x);
-            ImGui::ColorEdit4("Color [1]", &colors[1].x);
-            ImGui::ColorEdit4("Color [2]", &colors[2].x);
-            ImGui::ColorEdit4("Color [3]", &colors[3].x);
-            ImGui::ColorEdit4("Color [4]", &colors[4].x);
-            ImGui::SeparatorText("Draw Original");
+            ImGui::Begin("Scene");
+            ImGui::DragFloat("FOV: ", &top, 0.01f, 0, 100);
+            bottom = -top;
+            left = -right;
+            right = top * ASPECT_RATIO;
+            left = -right;
+            ImGui::SeparatorText("Colors");
+            for (int i = 0; i < sizeof(colors) / sizeof(colors[0]); i++){
+                ImGui::ColorEdit4("", &colors[i].x, ImGuiColorEditFlags_InputHSV);
+            }
             ImGui::Checkbox("Draw ortho", &draw_ortho);
             ImGui::Checkbox("Original", &no_postprocessing);
             ImGui::End();
